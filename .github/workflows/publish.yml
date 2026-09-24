@@ -70,8 +70,9 @@ jobs:
         uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
-          args: --accept-routes --accept-dns=true
           hostname: kodi-publish-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Ensure subnet routes and MagicDNS are enabled
+        run: sudo tailscale set --accept-routes=true --accept-dns=true
       - name: Publish over SSH
         env:
           SSH_KEY_HOST: ${{ secrets.SSH_KEY_HOST }}

@@ -16,8 +16,9 @@ stable ZIPs and MD5 sidecars, and creates an uncompressed catalog and download p
 Python 2.7 syntax is checked in `python:2.7.18-slim`; runtime testing on the ATV
 is still necessary. The complete static tree is also saved as a GHA artifact.
 
-The Tailscale action signs in using `TS_AUTHKEY`, with `--accept-routes` and
-`--accept-dns=true`. The key must permit the runner to join the tailnet, and the
+The Tailscale action signs in using `TS_AUTHKEY`. A following `tailscale set`
+explicitly enables subnet routes and MagicDNS without duplicating the action's
+own `tailscale up` flags. The key must permit the runner to join the tailnet, and the
 tailnet must permit SSH traffic to the destination, including any subnet route.
 Hostname resolution explicitly queries Tailscale's resolver at `100.100.100.100`;
 short names are expanded with the tailnet's MagicDNS suffix. IP literals work too.
