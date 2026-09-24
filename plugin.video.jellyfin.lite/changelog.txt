@@ -1,3 +1,10 @@
+0.3.0
+- Add Live TV channel browsing to Videos with channel logos and current programs.
+- Play live channels as progressive AVC/TS streams and report live sessions.
+- Reopen dropped live streams with up to three retries (2, 4, and 8 seconds).
+- Cancel reconnects on Stop or another playback selection; release tuner sessions.
+- Display the fixed AVC video codec in Playback settings.
+
 0.2.1
 - Show only music libraries and music search when opened from Music add-ons.
 - Hide music libraries when opened from Video add-ons.

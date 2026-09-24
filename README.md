@@ -24,6 +24,19 @@ uses direct audio streaming where supported, with progressive MP3 transcoding
 otherwise. Set its bitrate separately under Music in the add-on settings.
 Video transcoding continues to use progressive TS.
 
+The Video view also includes **Live TV**, with paginated TV channels, logos,
+channel numbers, and current-program details. Jellyfin must have live TV configured
+and allow the user to access it. Live streams use the existing AVC/TS profile;
+Playback settings show **Codec: AVC** as a disabled field.
+
+If a live stream ends unexpectedly, the background service requests a fresh
+Jellyfin stream after 2 seconds, with up to three reconnects at 2/4/8-second
+backoff. A minute of successful playback restores the retry budget. Stop,
+another playback selection, and service shutdown cancel recovery. Helix reports
+explicit Stop and some failed opens through the same callback, so those events
+are treated as cancellation rather than forcing playback to resume. Live playback
+and a real network-drop/recovery still need an ATV smoke test.
+
 The add-on description records Jellyfin **10.11.x** as the tested server version.
 Run the browsing and playback regression tests with Python 2.7:
 

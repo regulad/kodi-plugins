@@ -95,7 +95,7 @@ class MusicTests(unittest.TestCase):
             for kind in ('music', 'movies', 'tvshows', 'musicvideos', 'books', 'photos')]}
         playback.mode_root(self.client)
         self.assertEqual([item.label for url, item, folder in entries],
-                         ['Continue Watching', 'Next Up', 'movies', 'tvshows', 'musicvideos', 'Search...'])
+                         ['Continue Watching', 'Next Up', 'Live TV', 'movies', 'tvshows', 'musicvideos', 'Search...'])
         self.assertEqual(params(entries[-1][0])['mode'], 'search')
         self.assertTrue(all(params(url)['content_type'] == 'video' for url, item, folder in entries))
 

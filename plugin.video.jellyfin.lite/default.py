@@ -4,6 +4,7 @@ import sys
 import json
 import time
 import urlparse
+import uuid
 
 import xbmc
 import xbmcaddon
@@ -15,6 +16,7 @@ sys.path.insert(0, os.path.join(xbmc.translatePath(ADDON.getAddonInfo('path')),
                                 'resources', 'lib'))
 
 from jfclient import Client, AuthError, log, qs, utf8, TICKS  # noqa: E402
+from jflive import open_live, close_live  # noqa: E402
 
 BASE = sys.argv[0]
 HANDLE = int(sys.argv[1])
@@ -69,6 +71,12 @@ def make_item(c, it, library=None):
         s, e = it.get('ParentIndexNumber'), it.get('IndexNumber')
         if s is not None and e is not None:
             name = u'%dx%02d. %s' % (s, e, name)
+    elif kind == 'LiveTvChannel':
+        if it.get('ChannelNumber'):
+            name = u'%s. %s' % (it['ChannelNumber'], name)
+        program = it.get('CurrentProgram') or {}
+        if program.get('Name'):
+            name += u' - ' + program['Name']
     li = xbmcgui.ListItem(name)
     tags = it.get('ImageTags') or {}
     width = setting_int('thumbwidth', 300)
@@ -89,6 +97,12 @@ def make_item(c, it, library=None):
             li.setProperty('fanart_image', c.image(it['Id'], 'Backdrop', bd[0], 1280))
         elif it.get('ParentBackdropItemId'):
             li.setProperty('fanart_image', c.image(it['ParentBackdropItemId'], 'Backdrop', None, 1280))
+
+    if kind == 'LiveTvChannel':
+        program = it.get('CurrentProgram') or {}
+        li.setInfo('video', {'title': name, 'plot': program.get('Overview') or it.get('Overview') or ''})
+        li.setProperty('IsPlayable', 'true')
+        return plugin_url(mode='liveplay', id=it['Id'], content_type='video'), li, False
 
     if kind in MUSIC_TYPES:
         li.setInfo('music', music_info(it))
@@ -181,6 +195,7 @@ def mode_root(c):
     if content_type != 'audio':
         add_dir('Continue Watching', plugin_url(mode='resume'))
         add_dir('Next Up', plugin_url(mode='nextup'))
+        add_dir('Live TV', plugin_url(mode='livetv', content_type='video'))
     views = c.get('/UserViews', userId=c.user_id)
     for v in views.get('Items', []):
         collection = v.get('CollectionType')
@@ -201,6 +216,48 @@ def mode_root(c):
 
 CONTENT_FOR = {'movies': 'movies', 'tvshows': 'tvshows', 'homevideos': 'movies',
                'musicvideos': 'musicvideos', 'boxsets': 'movies'}
+
+
+def mode_live_tv(c):
+    if ARGS.get('content_type') == 'audio':
+        xbmcplugin.endOfDirectory(HANDLE)
+        return
+    page = setting_int('pagesize', 50)
+    start = int(ARGS.get('start', 0))
+    res = c.get('/LiveTv/Channels', userId=c.user_id, type='TV',
+                startIndex=start, limit=page, sortBy='SortName', sortOrder='Ascending',
+                enableImages='true', enableImageTypes='Primary', imageTypeLimit=1,
+                addCurrentProgram='true')
+    add_items(c, res.get('Items', []), 'videos')
+    total = res.get('TotalRecordCount') or 0
+    if start + page < total:
+        add_dir('[Next page  %d-%d of %d]' % (start + page + 1,
+                                             min(start + 2 * page, total), total),
+                plugin_url(mode='livetv', start=start + page, content_type='video'))
+    xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
+
+
+def begin_playback():
+    intent = uuid.uuid4().hex
+    HOME.setProperty('jfl.intent', intent)
+    return intent
+
+
+def mode_live_play(c):
+    intent = begin_playback()
+    channel = c.get('/LiveTv/Channels/%s' % ARGS['id'], userId=c.user_id)
+    url, state = open_live(c, ARGS['id'], device_profile())
+    try:
+        state['Intent'] = intent
+        state['Name'] = channel.get('Name') or 'Live TV'
+        li = xbmcgui.ListItem(path=url)
+        li.setInfo('video', {'title': state['Name']})
+        li.setMimeType('video/mp2t')
+        HOME.setProperty('jfl.pending', json.dumps(state))
+        xbmcplugin.setResolvedUrl(HANDLE, True, li)
+    except Exception:
+        close_live(c, state)
+        raise
 
 
 def mode_music(c):
@@ -416,6 +473,7 @@ def fail():
 
 
 def mode_play(c):
+    begin_playback()  # Cancel a pending live reconnect when another item is selected.
     item_id = ARGS['id']
     res = c.get('/Items', userId=c.user_id, ids=item_id, fields=FIELDS)
     items = res.get('Items') or []
@@ -537,7 +595,8 @@ def mode_logout(c):
 MODES = {'root': mode_root, 'items': mode_items, 'seasons': mode_seasons,
          'episodes': mode_episodes, 'resume': mode_resume, 'nextup': mode_nextup,
          'search': mode_search, 'play': mode_play, 'played': mode_played,
-         'logout': mode_logout, 'music': mode_music, 'musicsearch': mode_music_search}
+         'logout': mode_logout, 'music': mode_music, 'musicsearch': mode_music_search,
+         'livetv': mode_live_tv, 'liveplay': mode_live_play}
 
 
 def main():
@@ -547,7 +606,7 @@ def main():
         MODES[mode](c)
     except AuthError as e:
         xbmcgui.Dialog().ok('Jellyfin', str(e), 'Check the add-on settings.')
-        if mode == 'play':
+        if mode in ('play', 'liveplay'):
             fail()
         elif mode not in ('played', 'logout'):
             xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
@@ -555,7 +614,7 @@ def main():
     except Exception as e:
         log('error in mode %s: %r' % (mode, e), xbmc.LOGERROR)
         xbmcgui.Dialog().ok('Jellyfin', 'Request failed:', utf8(repr(e))[:200])
-        if mode == 'play':
+        if mode in ('play', 'liveplay'):
             fail()
         elif mode not in ('played', 'logout'):
             xbmcplugin.endOfDirectory(HANDLE, succeeded=False)

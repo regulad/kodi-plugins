@@ -11,7 +11,7 @@ import xbmcaddon
 
 ADDON_ID = 'plugin.video.jellyfin.lite'
 CLIENT_NAME = 'Kodi Helix Lite'
-VERSION = '0.2.1'
+VERSION = '0.3.0'
 TICKS = 10000000  # 100 ns ticks per second
 
 
