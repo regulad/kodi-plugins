@@ -1,0 +1,82 @@
+name: Publish Kodi repository
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-helix
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out publishing tools
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          persist-credentials: false
+      - name: Check out Helix sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref == 'refs/heads/helix' && github.sha || 'helix' }}
+          path: sources
+          persist-credentials: false
+      - name: Check out pinned repository generator (2.3.8)
+        uses: actions/checkout@v4
+        with:
+          repository: chadparry/kodi-repository.chad.parry.org
+          ref: 27c38eddda89e626d05b029edb29fbc83bb27201
+          path: upstream
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install SSH and DNS utilities
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends openssh-client dnsutils
+      - name: Test publishing helpers
+        run: python -m unittest discover -s tests -v
+      - name: Package and validate repository
+        run: python tools/build.py sources upstream/tools/create_repository.py dist
+      - name: Check Python 2.7 syntax without importing add-ons
+        run: |
+          docker run --rm -v "$PWD/sources:/sources:ro" python:2.7.18-slim python -c '
+          import os
+          for root, dirs, files in os.walk("/sources"):
+              dirs[:] = [d for d in dirs if not d.startswith(".")]
+              for name in files:
+                  if name.endswith(".py"):
+                      path = os.path.join(root, name)
+                      with open(path, "rb") as source:
+                          compile(source.read(), path, "exec")
+          '
+      - name: Save installable repository artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: helix-repository-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/
+          if-no-files-found: error
+      - name: Join Tailscale with subnet routes and MagicDNS
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          args: --accept-routes --accept-dns=true
+          hostname: kodi-publish-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Publish over SSH
+        env:
+          SSH_KEY_HOST: ${{ secrets.SSH_KEY_HOST }}
+          SSH_KEY_USER: ${{ secrets.SSH_KEY_USER }}
+          SSH_KEY_BLOB: ${{ secrets.SSH_KEY_BLOB }}
+          SSH_KEY_PASSPHRASE: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          STATIC_FILE_BASE: ${{ secrets.STATIC_FILE_BASE }}
+        run: python tools/deploy.py dist

@@ -1,0 +1,4 @@
+repository:
+  name: kodi-plugins
+  description: Kodi add-on sources and repository publishing
+  default_branch: master
