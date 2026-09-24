@@ -71,7 +71,7 @@ def make_item(c, it, library=None):
         s, e = it.get('ParentIndexNumber'), it.get('IndexNumber')
         if s is not None and e is not None:
             name = u'%dx%02d. %s' % (s, e, name)
-    elif kind == 'LiveTvChannel':
+    elif kind == 'TvChannel':
         if it.get('ChannelNumber'):
             name = u'%s. %s' % (it['ChannelNumber'], name)
         program = it.get('CurrentProgram') or {}
@@ -98,7 +98,7 @@ def make_item(c, it, library=None):
         elif it.get('ParentBackdropItemId'):
             li.setProperty('fanart_image', c.image(it['ParentBackdropItemId'], 'Backdrop', None, 1280))
 
-    if kind == 'LiveTvChannel':
+    if kind == 'TvChannel':
         program = it.get('CurrentProgram') or {}
         li.setInfo('video', {'title': name, 'plot': program.get('Overview') or it.get('Overview') or ''})
         li.setProperty('IsPlayable', 'true')

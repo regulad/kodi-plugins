@@ -12,7 +12,7 @@
   <category label="Playback">
     <setting id="videocodec" type="text" label="Codec" default="AVC" enable="false"/>
     <setting id="bitrate" type="labelenum" label="Max streaming bitrate (kbit/s)" values="500|1000|1500|2000|2500|3000|4000|6000|8000|12000" default="2500"/>
-    <setting id="maxheight" type="labelenum" label="Max resolution (lines)" values="360|480|576|720|1080" default="720"/>
+    <setting id="maxheight" type="labelenum" label="Max resolution (lines)" values="360|480|576|720|768|1080" default="720"/>
     <setting id="channels" type="labelenum" label="Max audio channels" values="2|6" default="2"/>
     <setting id="directstream" type="bool" label="Send original file when it already fits the limits" default="true"/>
     <setting id="subs" type="enum" label="Subtitles" values="Server default|Off" default="0"/>

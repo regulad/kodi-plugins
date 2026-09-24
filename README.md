@@ -12,7 +12,10 @@ Install the repository ZIP from:
 http://kodi.regulad.xyz/helix/repository.regulad.helix/repository.regulad.helix-1.0.0.zip
 
 Then install Jellyfin Lite from Regulad Helix in Kodi. Configure the Jellyfin
-server and credentials in the add-on settings. An ATV runtime smoke test is
+server and credentials in the add-on settings. Omitted protocols default to HTTP,
+and omitted ports default to 8096 (including for HTTPS). Explicit protocols and
+ports are preserved; use `http://your-server:80` for a server on port 80.
+An ATV runtime smoke test is
 still required; CI syntax and package checks do not establish playback support.
 
 Jellyfin Lite appears in both Video and Music add-ons, with separate listings

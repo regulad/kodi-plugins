@@ -1,3 +1,10 @@
+0.3.1
+- Recognize Jellyfin's TvChannel API type so channel clicks play instead of browsing.
+- Restore inline channel numbers and current program titles in Live TV listings.
+- Add 768 lines to the maximum video resolution choices.
+- Default server addresses without a protocol to HTTP; preserve explicit HTTPS.
+- Default omitted server ports to 8096, preserving explicitly specified ports.
+
 0.3.0
 - Add Live TV channel browsing to Videos with channel logos and current programs.
 - Play live channels as progressive AVC/TS streams and report live sessions.

@@ -4,6 +4,7 @@
 import json
 import urllib
 import urllib2
+import urlparse
 import uuid
 
 import xbmc
@@ -11,7 +12,7 @@ import xbmcaddon
 
 ADDON_ID = 'plugin.video.jellyfin.lite'
 CLIENT_NAME = 'Kodi Helix Lite'
-VERSION = '0.3.0'
+VERSION = '0.3.1'
 TICKS = 10000000  # 100 ns ticks per second
 
 
@@ -60,6 +61,13 @@ class Client(object):
     def __init__(self, addon=None):
         self.addon = addon or xbmcaddon.Addon(ADDON_ID)
         self.server = self.addon.getSetting('server').strip().rstrip('/')
+        if self.server and '://' not in self.server:
+            self.server = 'http://' + self.server.lstrip('/')
+        if self.server:
+            parts = urlparse.urlsplit(self.server)
+            if parts.port is None:
+                self.server = urlparse.urlunsplit((parts.scheme, parts.netloc + ':8096',
+                                                  parts.path, parts.query, parts.fragment))
         self.token = self.addon.getSetting('token')
         self.user_id = self.addon.getSetting('userid')
         self.device_id = self.addon.getSetting('deviceid')

@@ -12,7 +12,8 @@ from jflive import open_live, close_live
 class LiveClient(MusicClient):
     def __init__(self):
         MusicClient.__init__(self)
-        self.channel = {'Id': 'channel', 'Type': 'LiveTvChannel', 'Name': 'Channel',
+        # Jellyfin 10.11 LiveTvChannel.GetClientTypeName() returns TvChannel.
+        self.channel = {'Id': 'channel', 'Type': 'TvChannel', 'Name': 'Channel',
                         'ChannelNumber': '7.2', 'ImageTags': {'Primary': 'logo'},
                         'CurrentProgram': {'Name': 'News', 'Overview': 'Current headlines'}}
         self.posts = []
@@ -97,6 +98,19 @@ class LiveTvTests(unittest.TestCase):
         self.assertEqual(item.context, [])
         self.assertEqual(params(entries[-1][0])['start'], '50')
         self.assertEqual(params(entries[-1][0])['content_type'], 'video')
+
+    def test_clicking_listed_channel_resolves_stream_instead_of_browsing(self):
+        playback.mode_live_tv(self.client)
+        url, item, folder = entries[0]
+        self.assertFalse(folder)
+        playback.ARGS = params(url)
+        entries[:] = []
+        self.client.calls[:] = []
+        playback.MODES[playback.ARGS['mode']](self.client)
+        self.assertEqual(entries, [])
+        self.assertEqual(self.client.calls[0][0], '/LiveTv/Channels/channel')
+        self.assertTrue(resolved[-1][1])
+        self.assertIn('/Videos/channel/stream.ts?', resolved[-1][2].path)
 
     def test_audio_view_never_lists_live_tv(self):
         playback.ARGS = {'content_type': 'audio'}
