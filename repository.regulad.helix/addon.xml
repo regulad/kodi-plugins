@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="repository.regulad.helix" name="Regulad Helix" version="1.0.0" provider-name="regulad">
+  <requires>
+    <import addon="xbmc.addon" version="12.0.0"/>
+  </requires>
+  <extension point="xbmc.addon.repository" name="Regulad Helix">
+    <info compressed="false">http://kodi.regulad.xyz/helix/addons.xml</info>
+    <checksum>http://kodi.regulad.xyz/helix/addons.xml.md5</checksum>
+    <datadir zip="true">http://kodi.regulad.xyz/helix/</datadir>
+    <hashes>true</hashes>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en">Lightweight add-ons for Kodi 14 Helix</summary>
+    <description lang="en">Maintained legacy ports for Kodi Helix, including Jellyfin Lite.</description>
+    <platform>all</platform>
+    <noicon>true</noicon>
+    <nofanart>true</nofanart>
+  </extension>
+</addon>

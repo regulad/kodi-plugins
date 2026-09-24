@@ -1,0 +1,11 @@
+name: Publish Helix sources
+on:
+  push:
+    branches: [helix]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    uses: regulad/kodi-plugins/.github/workflows/publish.yml@master
+    secrets: inherit

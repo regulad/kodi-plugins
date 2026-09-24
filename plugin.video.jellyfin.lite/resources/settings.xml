@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+  <category label="Server">
+    <setting id="server" type="text" label="Server URL" default="http://100.70.168.20:8096"/>
+    <setting id="username" type="text" label="Username" default=""/>
+    <setting id="password" type="text" option="hidden" label="Password" default=""/>
+    <setting id="logout" type="action" label="Forget saved login" action="RunPlugin(plugin://plugin.video.jellyfin.lite/?mode=logout)"/>
+    <setting id="token" type="text" label="token" default="" visible="false"/>
+    <setting id="userid" type="text" label="userid" default="" visible="false"/>
+    <setting id="deviceid" type="text" label="deviceid" default="" visible="false"/>
+  </category>
+  <category label="Playback">
+    <setting id="bitrate" type="labelenum" label="Max streaming bitrate (kbit/s)" values="500|1000|1500|2000|2500|3000|4000|6000|8000|12000" default="2500"/>
+    <setting id="maxheight" type="labelenum" label="Max resolution (lines)" values="360|480|576|720|1080" default="720"/>
+    <setting id="channels" type="labelenum" label="Max audio channels" values="2|6" default="2"/>
+    <setting id="protocol" type="enum" label="Transcode delivery" values="HLS (seekable)|Progressive TS (uses Kodi cache)" default="0"/>
+    <setting id="directstream" type="bool" label="Send original file when it already fits the limits" default="true"/>
+    <setting id="subs" type="enum" label="Subtitles" values="Server default|Off" default="0"/>
+    <setting id="askresume" type="bool" label="Offer to resume partially watched items" default="true"/>
+  </category>
+  <category label="Browsing">
+    <setting id="pagesize" type="labelenum" label="Items per page" values="25|50|100|200" default="50"/>
+    <setting id="thumbwidth" type="labelenum" label="Poster width (px)" values="200|300|400" default="300"/>
+    <setting id="fanart" type="bool" label="Load fanart" default="false"/>
+  </category>
+</settings>
