@@ -227,7 +227,6 @@ def mode_search(c):
 def device_profile():
     maxh = setting_int('maxheight', 720)
     channels = str(setting_int('channels', 2))
-    hls = ADDON.getSetting('protocol') != '1'
     h264_limits = [
         {'Condition': 'LessThanEqual', 'Property': 'VideoLevel', 'Value': '41', 'IsRequired': False},
         {'Condition': 'LessThanEqual', 'Property': 'VideoBitDepth', 'Value': '8', 'IsRequired': False},
@@ -247,9 +246,8 @@ def device_profile():
         'TranscodingProfiles': [
             {'Type': 'Video', 'Container': 'ts', 'VideoCodec': 'h264',
              'AudioCodec': 'aac,mp3,ac3', 'Context': 'Streaming',
-             'Protocol': hls and 'hls' or 'http', 'MaxAudioChannels': channels,
-             'MinSegments': 1, 'BreakOnNonKeyFrames': True,
-             'EstimateContentLength': not hls, 'TranscodeSeekInfo': 'Auto',
+             'Protocol': 'http', 'MaxAudioChannels': channels,
+             'EstimateContentLength': True, 'TranscodeSeekInfo': 'Auto',
              'CopyTimestamps': False},
         ],
         'ContainerProfiles': [],
@@ -303,20 +301,18 @@ def mode_play(c):
         if choice == 0:
             start = pos // TICKS
 
-    hls = ADDON.getSetting('protocol') != '1'
-    progressive_offset = start and not hls
     body = {
         'UserId': c.user_id,
         'DeviceProfile': device_profile(),
         'MaxStreamingBitrate': setting_int('bitrate', 2500) * 1000,
         'MaxAudioChannels': setting_int('channels', 2),
         'EnableDirectPlay': False,  # server-local paths are useless to us
-        'EnableDirectStream': ADDON.getSetting('directstream') == 'true',
+        'EnableDirectStream': ADDON.getSetting('directstream') == 'true' and not start,
         'EnableTranscoding': True,
         'AllowVideoStreamCopy': True,
         'AllowAudioStreamCopy': True,
         'AutoOpenLiveStream': True,
-        'StartTimeTicks': progressive_offset and start * TICKS or 0,
+        'StartTimeTicks': start * TICKS,
     }
     if ADDON.getSetting('subs') == '1':
         body['SubtitleStreamIndex'] = -1
@@ -329,7 +325,7 @@ def mode_play(c):
     session = info.get('PlaySessionId') or ''
 
     if src.get('SupportsDirectStream') and not src.get('TranscodingUrl') \
-            and not progressive_offset:
+            and not start:
         method = 'DirectStream'
         container = (src.get('Container') or 'mkv').split(',')[0]
         url = c.url('/Videos/%s/stream.%s' % (item_id, container),
@@ -342,7 +338,7 @@ def mode_play(c):
         url = c.server + src['TranscodingUrl']
         if 'ApiKey=' not in url and 'api_key=' not in url:
             url += '&ApiKey=' + c.token
-        mime = hls and 'application/vnd.apple.mpegurl' or 'video/mp2t'
+        mime = 'video/mp2t'
     else:
         xbmcgui.Dialog().ok('Jellyfin', 'Server offered no playable stream for this item.')
         return fail()
@@ -365,11 +361,10 @@ def mode_play(c):
     if subs and hasattr(li, 'setSubtitles'):
         li.setSubtitles(subs)
 
-    # Hand off to the service for progress reporting / resume seek.
+    # Progressive streams start at the server-side offset; report absolute progress.
     HOME.setProperty('jfl.pending', json.dumps({
         'ItemId': item_id, 'MediaSourceId': src['Id'], 'PlaySessionId': session,
-        'PlayMethod': method, 'Seek': (not progressive_offset) and start or 0,
-        'Offset': progressive_offset and start or 0,
+        'PlayMethod': method, 'Offset': start,
         'Runtime': (it.get('RunTimeTicks') or 0) // TICKS,
         'ts': time.time(),
     }))

@@ -1,0 +1,5 @@
+0.1.1
+- Set author and contact to regulad / regulad@regulad.xyz.
+- Start with an empty server URL for new installations.
+- Use progressive MPEG-TS for transcoding; remove the transport selector.
+- Resume through the server-side start offset and report absolute playback progress.

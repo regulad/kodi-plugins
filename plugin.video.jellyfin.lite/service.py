@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # Background service: reports playback to Jellyfin (so resume points and
-# watched state sync, and the server kills finished transcodes) and performs
-# the resume seek for HLS streams.
+# watched state sync, and the server kills finished transcodes).
 import os
 import sys
 import json
@@ -102,18 +101,6 @@ class Tracker(xbmc.Player):
         if self.need_start:
             self.need_start = False
             self.send('/Sessions/Playing', self.body())
-            seek = self.active.get('Seek') or 0
-            if seek:
-                # Give the demuxer a moment to open the stream before seeking.
-                for _ in range(20):
-                    if self.isPlayingVideo() and self.getTotalTime() > 0:
-                        break
-                    xbmc.sleep(250)
-                try:
-                    self.seekTime(float(seek))
-                    self.position = float(seek)
-                except RuntimeError:
-                    pass
             self.last_report = time.time()
             return
         now = time.time()
