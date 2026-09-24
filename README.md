@@ -13,8 +13,9 @@ at commit `27c38eddda89e626d05b029edb29fbc83bb27201`. The upstream code retains
 its GPL license in that checkout; it is fetched during CI rather than copied here.
 The builder exports only tracked add-on directories, checks dependencies, makes
 stable ZIPs and MD5 sidecars, and creates an uncompressed catalog and download page.
-Python 2.7 syntax is checked in `python:2.7.18-slim`; runtime testing on the ATV
-is still necessary. The complete static tree is also saved as a GHA artifact.
+Python 2.7 syntax and the Helix branch's browsing/playback regression tests run
+in `python:2.7.18-slim`; runtime testing on the ATV is still necessary. The
+complete static tree is also saved as a GHA artifact.
 
 The Tailscale action signs in using `TS_AUTHKEY`. A following `tailscale set`
 explicitly enables subnet routes and MagicDNS without duplicating the action's

@@ -60,6 +60,10 @@ jobs:
                       with open(path, "rb") as source:
                           compile(source.read(), path, "exec")
           '
+      - name: Test Helix browsing and playback
+        run: |
+          docker run --rm -v "$PWD/sources:/sources:ro" -w /sources \
+            python:2.7.18-slim python -B -m unittest discover -s tests -v
       - name: Save installable repository artifact
         uses: actions/upload-artifact@v4
         with:
