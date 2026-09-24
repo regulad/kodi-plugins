@@ -1,3 +1,8 @@
+0.2.1
+- Show only music libraries and music search when opened from Music add-ons.
+- Hide music libraries when opened from Video add-ons.
+- Preserve Kodi's content type in navigation and filter mismatched media items.
+
 0.2.0
 - Browse music libraries, artists, albums, and songs with artwork and pagination.
 - Search music and expose Jellyfin Lite in Kodi's Music add-ons.

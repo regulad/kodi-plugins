@@ -15,7 +15,9 @@ Then install Jellyfin Lite from Regulad Helix in Kodi. Configure the Jellyfin
 server and credentials in the add-on settings. An ATV runtime smoke test is
 still required; CI syntax and package checks do not establish playback support.
 
-Jellyfin Lite appears in both Video and Music add-ons. Open a music library to
+Jellyfin Lite appears in both Video and Music add-ons, with separate listings
+and search for each category. Opening a bare plugin URL without Kodi's content
+type retains the combined library view. Open a music library to
 browse Artists, Albums, or Songs, or search within that library. Artist pages
 also link to all their songs; albums list tracks in disc/track order. Music
 uses direct audio streaming where supported, with progressive MP3 transcoding

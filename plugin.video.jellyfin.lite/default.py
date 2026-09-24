@@ -34,6 +34,9 @@ def setting_int(key, default):
 
 
 def plugin_url(**params):
+    content_type = ARGS.get('content_type')
+    if content_type in ('audio', 'video'):
+        params.setdefault('content_type', content_type)
     return BASE + '?' + qs(params)
 
 
@@ -154,6 +157,11 @@ def route_for(it, library=None):
 def add_items(c, items, content=None, library=None):
     entries = []
     for it in items:
+        content_type = ARGS.get('content_type')
+        if content_type == 'video' and it.get('Type') in MUSIC_TYPES:
+            continue
+        if content_type == 'audio' and it.get('Type') not in MUSIC_TYPES:
+            continue
         try:
             entries.append(make_item(c, it, library))
         except Exception as e:
@@ -169,16 +177,26 @@ def add_dir(label, url):
 
 # -- directory modes -----------------------------------------------------
 def mode_root(c):
-    add_dir('Continue Watching', plugin_url(mode='resume'))
-    add_dir('Next Up', plugin_url(mode='nextup'))
+    content_type = ARGS.get('content_type')
+    if content_type != 'audio':
+        add_dir('Continue Watching', plugin_url(mode='resume'))
+        add_dir('Next Up', plugin_url(mode='nextup'))
     views = c.get('/UserViews', userId=c.user_id)
     for v in views.get('Items', []):
-        if v.get('CollectionType') in ('books', 'photos', 'livetv', 'playlists'):
+        collection = v.get('CollectionType')
+        if collection in ('books', 'photos', 'livetv', 'playlists'):
+            continue
+        if content_type == 'audio' and collection != 'music':
+            continue
+        if content_type == 'video' and collection == 'music':
             continue
         url, li, folder = make_item(c, v)
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
-    add_dir('Search...', plugin_url(mode='search'))
-    xbmcplugin.endOfDirectory(HANDLE)
+    if content_type == 'audio':
+        add_dir('Search music...', plugin_url(mode='musicsearch'))
+    else:
+        add_dir('Search...', plugin_url(mode='search'))
+    xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
 
 CONTENT_FOR = {'movies': 'movies', 'tvshows': 'tvshows', 'homevideos': 'movies',

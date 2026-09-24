@@ -78,6 +78,48 @@ class MusicTests(unittest.TestCase):
                          ['Artists', 'Albums', 'Songs', 'Search music...'])
         self.assertTrue(all(params(url)['library'] == 'library' for url, item, folder in entries))
 
+    def test_audio_entry_point_has_only_music_libraries_and_search(self):
+        playback.ARGS = {'content_type': 'audio'}
+        self.client.result = {'Items': [
+            {'Id': kind, 'Name': kind, 'CollectionType': kind}
+            for kind in ('music', 'movies', 'tvshows', 'musicvideos', 'books', 'photos', '')]}
+        playback.mode_root(self.client)
+        self.assertEqual([item.label for url, item, folder in entries], ['music', 'Search music...'])
+        self.assertEqual(params(entries[-1][0])['mode'], 'musicsearch')
+        self.assertTrue(all(params(url)['content_type'] == 'audio' for url, item, folder in entries))
+
+    def test_video_entry_point_has_no_music_libraries_or_search(self):
+        playback.ARGS = {'content_type': 'video'}
+        self.client.result = {'Items': [
+            {'Id': kind, 'Name': kind, 'CollectionType': kind}
+            for kind in ('music', 'movies', 'tvshows', 'musicvideos', 'books', 'photos')]}
+        playback.mode_root(self.client)
+        self.assertEqual([item.label for url, item, folder in entries],
+                         ['Continue Watching', 'Next Up', 'movies', 'tvshows', 'musicvideos', 'Search...'])
+        self.assertEqual(params(entries[-1][0])['mode'], 'search')
+        self.assertTrue(all(params(url)['content_type'] == 'video' for url, item, folder in entries))
+
+    def test_audio_context_survives_library_navigation_and_pagination(self):
+        playback.ARGS = {'content_type': 'audio', 'mode': 'music', 'library': 'library'}
+        playback.mode_music(self.client)
+        self.assertTrue(all(params(url)['content_type'] == 'audio' for url, item, folder in entries))
+        playback.ARGS = params(entries[2][0])
+        entries[:] = []
+        self.client.result = {'Items': [self.client.item], 'TotalRecordCount': 100}
+        playback.mode_music(self.client)
+        self.assertTrue(all(params(url)['content_type'] == 'audio' for url, item, folder in entries))
+        self.assertEqual(params(entries[0][0])['mode'], 'play')
+        self.assertEqual(params(entries[-1][0])['start'], '50')
+
+    def test_mixed_results_do_not_leak_into_opposite_category(self):
+        movie = {'Id': 'movie', 'Type': 'Movie', 'Name': 'Movie'}
+        for content_type, expected in [('audio', 'track'), ('video', 'movie')]:
+            entries[:] = []
+            playback.ARGS = {'content_type': content_type}
+            playback.add_items(self.client, [self.client.item, movie])
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(params(entries[0][0])['id'], expected)
+
     def test_artist_album_and_track_routes_keep_library_scope(self):
         playback.ARGS = {'mode': 'music', 'view': 'artists', 'library': 'library'}
         self.client.result = {'Items': [{'Id': 'artist', 'Type': 'MusicArtist', 'Name': 'Artist'}]}
