@@ -1,4 +1,5 @@
 repository:
   name: kodi-plugins
   description: Kodi add-on sources and repository publishing
+  topics: kodi, kodi-addons, kodi-repository, kodi-helix, jellyfin, apple-tv, appletv3, live-tv, python
   default_branch: master
