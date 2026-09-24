@@ -14,3 +14,17 @@ http://kodi.regulad.xyz/helix/repository.regulad.helix/repository.regulad.helix-
 Then install Jellyfin Lite from Regulad Helix in Kodi. Configure the Jellyfin
 server and credentials in the add-on settings. An ATV runtime smoke test is
 still required; CI syntax and package checks do not establish playback support.
+
+Jellyfin Lite appears in both Video and Music add-ons. Open a music library to
+browse Artists, Albums, or Songs, or search within that library. Artist pages
+also link to all their songs; albums list tracks in disc/track order. Music
+uses direct audio streaming where supported, with progressive MP3 transcoding
+otherwise. Set its bitrate separately under Music in the add-on settings.
+Video transcoding continues to use progressive TS.
+
+The add-on description records Jellyfin **10.11.x** as the tested server version.
+Run the browsing and playback regression tests with Python 2.7:
+
+```sh
+python -m unittest discover -s tests -v
+```

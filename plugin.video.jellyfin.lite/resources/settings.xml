@@ -17,6 +17,9 @@
     <setting id="subs" type="enum" label="Subtitles" values="Server default|Off" default="0"/>
     <setting id="askresume" type="bool" label="Offer to resume partially watched items" default="true"/>
   </category>
+  <category label="Music">
+    <setting id="audiobitrate" type="labelenum" label="Max music bitrate (kbit/s)" values="128|192|256|320" default="320"/>
+  </category>
   <category label="Browsing">
     <setting id="pagesize" type="labelenum" label="Items per page" values="25|50|100|200" default="50"/>
     <setting id="thumbwidth" type="labelenum" label="Poster width (px)" values="200|300|400" default="300"/>

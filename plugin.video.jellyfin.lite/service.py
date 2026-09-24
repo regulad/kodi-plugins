@@ -94,7 +94,7 @@ class Tracker(xbmc.Player):
         if not self.active:
             return
         try:
-            if self.isPlayingVideo():
+            if self.isPlayingVideo() or self.isPlayingAudio():
                 self.position = self.getTime() + float(self.active.get('Offset') or 0)
         except RuntimeError:
             return

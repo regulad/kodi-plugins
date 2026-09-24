@@ -21,6 +21,7 @@ HANDLE = int(sys.argv[1])
 ARGS = dict((k, v[0]) for k, v in urlparse.parse_qs(sys.argv[2].lstrip('?')).items())
 
 PLAYABLE = ('Movie', 'Episode', 'Video', 'MusicVideo', 'Trailer')
+MUSIC_TYPES = ('MusicArtist', 'MusicAlbum', 'Audio')
 FIELDS = 'Overview,ProductionYear,Genres,PremiereDate'
 HOME = xbmcgui.Window(10000)
 
@@ -37,7 +38,28 @@ def plugin_url(**params):
 
 
 # -- list item construction ----------------------------------------------
-def make_item(c, it):
+def music_info(it):
+    info = {'title': it.get('Name') or ''}
+    artists = it.get('Artists') or [a['Name'] for a in it.get('AlbumArtists') or [] if a.get('Name')]
+    if it.get('Type') == 'MusicArtist':
+        artists = [it.get('Name') or '']
+    info['artist'] = u' / '.join(artists)
+    info['album'] = it.get('Album') or (it.get('Type') == 'MusicAlbum' and it.get('Name')) or ''
+    if it.get('Genres'):
+        info['genre'] = u' / '.join(it['Genres'])
+    if it.get('ProductionYear'):
+        info['year'] = it['ProductionYear']
+    if it.get('RunTimeTicks'):
+        info['duration'] = int(it['RunTimeTicks'] // TICKS)
+    if it.get('IndexNumber') is not None:
+        info['tracknumber'] = it['IndexNumber']
+    if it.get('ParentIndexNumber') is not None:
+        info['discnumber'] = it['ParentIndexNumber']
+    info['playcount'] = (it.get('UserData') or {}).get('PlayCount') or 0
+    return info
+
+
+def make_item(c, it, library=None):
     kind = it.get('Type')
     name = it.get('Name') or ''
     if kind == 'Episode':
@@ -52,6 +74,8 @@ def make_item(c, it):
         thumb = c.image(it['Id'], 'Primary', tags['Primary'], width)
     elif kind in ('Episode', 'Season') and it.get('SeriesId'):
         thumb = c.image(it['SeriesId'], 'Primary', it.get('SeriesPrimaryImageTag'), width)
+    elif kind == 'Audio' and it.get('AlbumId'):
+        thumb = c.image(it['AlbumId'], 'Primary', it.get('AlbumPrimaryImageTag'), width)
     if thumb:
         li.setIconImage(thumb)
         li.setThumbnailImage(thumb)
@@ -62,6 +86,13 @@ def make_item(c, it):
             li.setProperty('fanart_image', c.image(it['Id'], 'Backdrop', bd[0], 1280))
         elif it.get('ParentBackdropItemId'):
             li.setProperty('fanart_image', c.image(it['ParentBackdropItemId'], 'Backdrop', None, 1280))
+
+    if kind in MUSIC_TYPES:
+        li.setInfo('music', music_info(it))
+        if kind == 'Audio':
+            li.setProperty('IsPlayable', 'true')
+            return plugin_url(mode='play', id=it['Id']), li, False
+        return route_for(it, library), li, True
 
     info = {'title': it.get('Name') or ''}
     if it.get('Overview'):
@@ -105,8 +136,14 @@ def make_item(c, it):
     return route_for(it), li, True
 
 
-def route_for(it):
+def route_for(it, library=None):
     kind = it.get('Type')
+    if it.get('CollectionType') == 'music':
+        return plugin_url(mode='music', library=it['Id'])
+    if kind == 'MusicArtist':
+        return plugin_url(mode='music', view='albums', artist=it['Id'], library=library)
+    if kind == 'MusicAlbum':
+        return plugin_url(mode='music', view='songs', album=it['Id'], library=library)
     if kind == 'Series':
         return plugin_url(mode='seasons', id=it['Id'])
     if kind == 'Season':
@@ -114,11 +151,11 @@ def route_for(it):
     return plugin_url(mode='items', parent=it['Id'], ctype=it.get('CollectionType') or '')
 
 
-def add_items(c, items, content=None):
+def add_items(c, items, content=None, library=None):
     entries = []
     for it in items:
         try:
-            entries.append(make_item(c, it))
+            entries.append(make_item(c, it, library))
         except Exception as e:
             log('skipping item %s: %r' % (utf8(it.get('Name')), e))
     xbmcplugin.addDirectoryItems(HANDLE, entries, len(entries))
@@ -136,7 +173,7 @@ def mode_root(c):
     add_dir('Next Up', plugin_url(mode='nextup'))
     views = c.get('/UserViews', userId=c.user_id)
     for v in views.get('Items', []):
-        if v.get('CollectionType') in ('music', 'books', 'photos', 'livetv', 'playlists'):
+        if v.get('CollectionType') in ('books', 'photos', 'livetv', 'playlists'):
             continue
         url, li, folder = make_item(c, v)
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
@@ -146,6 +183,66 @@ def mode_root(c):
 
 CONTENT_FOR = {'movies': 'movies', 'tvshows': 'tvshows', 'homevideos': 'movies',
                'musicvideos': 'musicvideos', 'boxsets': 'movies'}
+
+
+def mode_music(c):
+    library = ARGS.get('library')
+    view = ARGS.get('view')
+    if not view:
+        for label, section in (('Artists', 'artists'), ('Albums', 'albums'), ('Songs', 'songs')):
+            add_dir(label, plugin_url(mode='music', library=library, view=section))
+        add_dir('Search music...', plugin_url(mode='musicsearch', library=library))
+        xbmcplugin.endOfDirectory(HANDLE)
+        return
+
+    kinds = {'artists': 'MusicArtist', 'albums': 'MusicAlbum', 'songs': 'Audio'}
+    page = setting_int('pagesize', 50)
+    start = int(ARGS.get('start', 0))
+    params = {'userId': c.user_id, 'parentId': ARGS.get('album') or library,
+              'startIndex': start, 'limit': page, 'fields': FIELDS,
+              'recursive': 'true', 'sortBy': 'SortName', 'sortOrder': 'Ascending',
+              'enableImageTypes': 'Primary', 'imageTypeLimit': 1,
+              'enableTotalRecordCount': 'true'}
+    if ARGS.get('q'):
+        params['searchTerm'] = ARGS['q']
+    if view == 'artists':
+        path = '/Artists'
+    else:
+        path = '/Items'
+        params['includeItemTypes'] = kinds[view]
+        if ARGS.get('artist'):
+            params['artistIds'] = ARGS['artist']
+        if view == 'songs' and ARGS.get('album'):
+            params['sortBy'] = 'ParentIndexNumber,IndexNumber,SortName'
+
+    res = c.request('GET', path, params)
+    if view == 'albums' and ARGS.get('artist') and start == 0:
+        # Also expose singles and appearances that have no album entry.
+        add_dir('All songs by this artist', plugin_url(mode='music', view='songs',
+                                                      artist=ARGS['artist'], library=library))
+    add_items(c, res.get('Items', []), view, library)
+    total = res.get('TotalRecordCount') or 0
+    if start + page < total:
+        next_page = dict(ARGS)
+        next_page.update(mode='music', start=start + page)
+        add_dir('[Next page  %d-%d of %d]' % (start + page + 1,
+                                             min(start + 2 * page, total), total),
+                plugin_url(**next_page))
+    xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
+
+
+def mode_music_search(c):
+    term = ARGS.get('q')
+    if not term:
+        kb = xbmc.Keyboard('', 'Search Jellyfin music')
+        kb.doModal()
+        if not kb.isConfirmed() or not kb.getText():
+            xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+            return
+        term = kb.getText()
+    for label, view in (('Artists', 'artists'), ('Albums', 'albums'), ('Songs', 'songs')):
+        add_dir(label, plugin_url(mode='music', view=view, library=ARGS.get('library'), q=term))
+    xbmcplugin.endOfDirectory(HANDLE)
 
 
 def mode_items(c):
@@ -224,6 +321,25 @@ def mode_search(c):
 
 
 # -- playback ------------------------------------------------------------
+def audio_device_profile():
+    bitrate = setting_int('audiobitrate', 320) * 1000
+    return {
+        'Name': 'Kodi 14 Music Lite',
+        'MaxStreamingBitrate': bitrate,
+        'MaxStaticBitrate': bitrate,
+        'DirectPlayProfiles': [
+            {'Type': 'Audio', 'Container': 'mp3,flac,wav,ogg,m4a,aac',
+             'AudioCodec': 'mp3,flac,pcm_s16le,pcm_s24le,vorbis,aac,alac'},
+        ],
+        'TranscodingProfiles': [
+            {'Type': 'Audio', 'Container': 'mp3', 'AudioCodec': 'mp3',
+             'Context': 'Streaming', 'Protocol': 'http', 'MaxAudioChannels': '2',
+             'EstimateContentLength': True, 'TranscodeSeekInfo': 'Auto'},
+        ],
+        'ContainerProfiles': [], 'CodecProfiles': [], 'SubtitleProfiles': [],
+    }
+
+
 def device_profile():
     maxh = setting_int('maxheight', 720)
     channels = str(setting_int('channels', 2))
@@ -288,11 +404,12 @@ def mode_play(c):
     if not items:
         return fail()
     it = items[0]
+    is_audio = it.get('Type') == 'Audio'
 
     # Resume choice.
     start = 0
     pos = (it.get('UserData') or {}).get('PlaybackPositionTicks') or 0
-    if pos and ARGS.get('resume') != '0' and ADDON.getSetting('askresume') == 'true':
+    if not is_audio and pos and ARGS.get('resume') != '0' and ADDON.getSetting('askresume') == 'true':
         choice = xbmcgui.Dialog().select(utf8(it.get('Name') or ''),
                                          ['Resume from ' + fmt_time(pos // TICKS),
                                           'Play from beginning'])
@@ -303,9 +420,10 @@ def mode_play(c):
 
     body = {
         'UserId': c.user_id,
-        'DeviceProfile': device_profile(),
-        'MaxStreamingBitrate': setting_int('bitrate', 2500) * 1000,
-        'MaxAudioChannels': setting_int('channels', 2),
+        'DeviceProfile': audio_device_profile() if is_audio else device_profile(),
+        'MaxStreamingBitrate': (setting_int('audiobitrate', 320) if is_audio
+                                else setting_int('bitrate', 2500)) * 1000,
+        'MaxAudioChannels': 2 if is_audio else setting_int('channels', 2),
         'EnableDirectPlay': False,  # server-local paths are useless to us
         'EnableDirectStream': ADDON.getSetting('directstream') == 'true' and not start,
         'EnableTranscoding': True,
@@ -314,21 +432,26 @@ def mode_play(c):
         'AutoOpenLiveStream': True,
         'StartTimeTicks': start * TICKS,
     }
-    if ADDON.getSetting('subs') == '1':
+    if not is_audio and ADDON.getSetting('subs') == '1':
         body['SubtitleStreamIndex'] = -1
     info = c.post('/Items/%s/PlaybackInfo' % item_id, body,
                   params={'userId': c.user_id}, timeout=60)
     if info.get('ErrorCode'):
         xbmcgui.Dialog().ok('Jellyfin', 'Playback refused: %s' % utf8(info['ErrorCode']))
         return fail()
-    src = info['MediaSources'][0]
+    sources = info.get('MediaSources') or []
+    if not sources:
+        xbmcgui.Dialog().ok('Jellyfin', 'Server offered no media source for this item.')
+        return fail()
+    src = sources[0]
     session = info.get('PlaySessionId') or ''
 
     if src.get('SupportsDirectStream') and not src.get('TranscodingUrl') \
             and not start:
         method = 'DirectStream'
-        container = (src.get('Container') or 'mkv').split(',')[0]
-        url = c.url('/Videos/%s/stream.%s' % (item_id, container),
+        container = (src.get('Container') or ('mp3' if is_audio else 'mkv')).split(',')[0]
+        endpoint = 'Audio' if is_audio else 'Videos'
+        url = c.url('/%s/%s/stream.%s' % (endpoint, item_id, container),
                     {'static': 'true', 'mediaSourceId': src['Id'],
                      'playSessionId': session, 'deviceId': c.device_id,
                      'tag': src.get('ETag')})
@@ -337,20 +460,28 @@ def mode_play(c):
         method = 'Transcode'
         url = c.server + src['TranscodingUrl']
         if 'ApiKey=' not in url and 'api_key=' not in url:
-            url += '&ApiKey=' + c.token
-        mime = 'video/mp2t'
+            url += ('&' if '?' in url else '?') + 'ApiKey=' + c.token
+        mime = 'audio/mpeg' if is_audio else 'video/mp2t'
     else:
         xbmcgui.Dialog().ok('Jellyfin', 'Server offered no playable stream for this item.')
         return fail()
     log('%s %s -> %s' % (method, item_id, url.replace(c.token, '<token>')))
 
     li = xbmcgui.ListItem(path=url)
+    if is_audio:
+        li.setInfo('music', music_info(it))
+        tags = it.get('ImageTags') or {}
+        image_id = it['Id'] if tags.get('Primary') else it.get('AlbumId')
+        if image_id:
+            li.setThumbnailImage(c.image(image_id, 'Primary',
+                                        tags.get('Primary') or it.get('AlbumPrimaryImageTag'),
+                                        setting_int('thumbwidth', 300)))
     if mime and hasattr(li, 'setMimeType'):
         li.setMimeType(mime)
     # External text subtitles the server chose for us.
     subs = []
     want = src.get('DefaultSubtitleStreamIndex')
-    for s in src.get('MediaStreams') or []:
+    for s in ([] if is_audio else src.get('MediaStreams') or []):
         if s.get('Type') == 'Subtitle' and s.get('DeliveryMethod') == 'External' \
                 and s.get('DeliveryUrl') and s.get('Index') == want:
             su = s['DeliveryUrl']
@@ -388,7 +519,7 @@ def mode_logout(c):
 MODES = {'root': mode_root, 'items': mode_items, 'seasons': mode_seasons,
          'episodes': mode_episodes, 'resume': mode_resume, 'nextup': mode_nextup,
          'search': mode_search, 'play': mode_play, 'played': mode_played,
-         'logout': mode_logout}
+         'logout': mode_logout, 'music': mode_music, 'musicsearch': mode_music_search}
 
 
 def main():

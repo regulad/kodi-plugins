@@ -1,3 +1,9 @@
+0.2.0
+- Browse music libraries, artists, albums, and songs with artwork and pagination.
+- Search music and expose Jellyfin Lite in Kodi's Music add-ons.
+- Stream music directly or transcode over HTTP to MP3 at the configured music bitrate.
+- Report music playback progress and stops to Jellyfin.
+
 0.1.1
 - Set author and contact to regulad / regulad@regulad.xyz.
 - Start with an empty server URL for new installations.

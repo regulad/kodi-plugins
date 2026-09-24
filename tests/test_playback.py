@@ -25,23 +25,54 @@ class Window(object):
     def setProperty(self, key, value):
         self.props[key] = value
 
+    def getProperty(self, key):
+        return self.props.get(key, '')
+
+    def clearProperty(self, key):
+        self.props.pop(key, None)
+
 
 class ListItem(object):
-    def __init__(self, **kwargs):
+    def __init__(self, label='', **kwargs):
+        self.label = label
         self.path = kwargs.get('path')
         self.mime = None
+        self.props = {}
+        self.info = {}
+        self.context = []
+        self.thumb = None
 
     def setMimeType(self, mime):
         self.mime = mime
+
+    def setInfo(self, kind, info):
+        self.info[kind] = info
+
+    def setProperty(self, key, value):
+        self.props[key] = value
+
+    def setIconImage(self, url):
+        self.icon = url
+
+    def setThumbnailImage(self, url):
+        self.thumb = url
+
+    def addContextMenuItems(self, items):
+        self.context.extend(items)
 
 
 class Dialog(object):
     def select(self, *args):
         return 0
 
+    def ok(self, *args):
+        pass
+
 
 window = Window()
 resolved = []
+entries = []
+contents = []
 xbmc = types.ModuleType('xbmc')
 xbmc.translatePath = lambda path: path
 xbmc.log = lambda *args: None
@@ -55,6 +86,10 @@ gui.ListItem = ListItem
 gui.Dialog = Dialog
 plugin = types.ModuleType('xbmcplugin')
 plugin.setResolvedUrl = lambda *args: resolved.append(args)
+plugin.addDirectoryItems = lambda handle, items, total: entries.extend(items)
+plugin.addDirectoryItem = lambda handle, url, item, folder: entries.append((url, item, folder))
+plugin.setContent = lambda handle, content: contents.append(content)
+plugin.endOfDirectory = lambda *args, **kwargs: None
 for name, module in [('xbmc', xbmc), ('xbmcaddon', addon), ('xbmcgui', gui), ('xbmcplugin', plugin)]:
     sys.modules[name] = module
 saved_argv = sys.argv
