@@ -8,6 +8,9 @@ on:
 
 permissions:
   contents: read
+  # Mints the GitHub OIDC token that kodi-plugins' Tailscale federated identity
+  # accepts, so no long-lived Tailscale secret is stored.
+  id-token: write
 
 concurrency:
   group: publish-helix
@@ -71,9 +74,11 @@ jobs:
           path: dist/
           if-no-files-found: error
       - name: Join Tailscale with subnet routes and MagicDNS
-        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
         with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci-kodi
           hostname: kodi-publish-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Ensure subnet routes and MagicDNS are enabled
         run: sudo tailscale set --accept-routes=true --accept-dns=true

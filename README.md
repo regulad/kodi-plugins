@@ -17,10 +17,14 @@ Python 2.7 syntax and the Helix branch's browsing/playback regression tests run
 in `python:2.7.18-slim`; runtime testing on the ATV is still necessary. The
 complete static tree is also saved as a GHA artifact.
 
-The Tailscale action signs in using `TS_AUTHKEY`. A following `tailscale set`
-explicitly enables subnet routes and MagicDNS without duplicating the action's
-own `tailscale up` flags. The key must permit the runner to join the tailnet, and the
-tailnet must permit SSH traffic to the destination, including any subnet route.
+The Tailscale action signs in with kodi-plugins' Tailscale federated identity:
+it exchanges the run's GitHub OIDC token, which the `id-token: write` permission
+lets it mint, for a key that joins the runner to the tailnet as `tag:ci-kodi`, so
+no long-lived Tailscale secret is stored. The identity trusts only runs on
+`master`; `regulad/homelab`'s `tofu/tailscale` defines it. A following
+`tailscale set` explicitly enables subnet routes and MagicDNS without duplicating
+the action's own `tailscale up` flags. The tailnet must permit SSH traffic from
+`tag:ci-kodi` to the destination, including any subnet route.
 Hostname resolution explicitly queries Tailscale's resolver at `100.100.100.100`;
 short names are expanded with the tailnet's MagicDNS suffix. IP literals work too.
 
@@ -28,7 +32,8 @@ short names are expanded with the tailnet's MagicDNS suffix. IP literals work to
 
 | Secret | Value |
 | --- | --- |
-| `TS_AUTHKEY` | Reusable, ephemeral Tailscale authentication key |
+| `TS_OAUTH_ID` | The Tailscale federated identity's client ID |
+| `TS_AUDIENCE` | The identity's audience, `api.tailscale.com/<client ID>` |
 | `SSH_KEY_HOST` | Hostname or IP address; SSH port 22 |
 | `SSH_KEY_USER` | Remote SSH account |
 | `SSH_KEY_BLOB` | Full `BEGIN/END OPENSSH PRIVATE KEY` text, including its base64 body; a base64 encoding of the entire text is also accepted |
