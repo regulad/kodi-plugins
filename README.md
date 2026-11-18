@@ -34,12 +34,20 @@ short names are expanded with the tailnet's MagicDNS suffix. IP literals work to
 | --- | --- |
 | `TS_OAUTH_ID` | The Tailscale federated identity's client ID |
 | `TS_AUDIENCE` | The identity's audience, `api.tailscale.com/<client ID>` |
+| `SOPS_AGE_KEY` | The age identity that decrypts `publish.sops.yaml` |
 | `SSH_KEY_HOST` | Hostname or IP address; SSH port 22 |
 | `SSH_KEY_USER` | Remote SSH account |
-| `SSH_KEY_BLOB` | Full `BEGIN/END OPENSSH PRIVATE KEY` text, including its base64 body; a base64 encoding of the entire text is also accepted |
-| `SSH_KEY_PASSPHRASE` | Passphrase for the encrypted key |
 | `STATIC_FILE_BASE` | Absolute remote web root, owned by the SSH user |
 
+`regulad/homelab`'s `tofu/github` sets them. The SSH private key is not a
+secret of its own: it is `ssh_key` in `publish.sops.yaml`, encrypted with SOPS
+to Parker's age key and to this repository's own (see `.sops.yaml`), and the
+workflow decrypts it into `SSH_KEY_BLOB` for the publish step alone.
+
+`tools/deploy.py` reads the key from `SSH_KEY_BLOB`: the full `BEGIN/END OPENSSH
+PRIVATE KEY` text, including its base64 body; a base64 encoding of the entire
+text is also accepted. `SSH_KEY_PASSPHRASE` is optional, for an encrypted key;
+the published key has none, as a passphrase kept beside it would add nothing.
 OpenSSH loads the key into a temporary agent using an askpass helper. ED25519
 and other OpenSSH-supported key types work. No key algorithm is imposed. The
 private key file is removed after loading, and the agent is stopped on exit.

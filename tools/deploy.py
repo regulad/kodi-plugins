@@ -86,7 +86,8 @@ echo 'Helix repository published'
 
 
 def deploy(dist):
-    names = ('SSH_KEY_HOST', 'SSH_KEY_USER', 'SSH_KEY_BLOB', 'SSH_KEY_PASSPHRASE', 'STATIC_FILE_BASE')
+    # SSH_KEY_PASSPHRASE is optional: an unencrypted key never asks for it.
+    names = ('SSH_KEY_HOST', 'SSH_KEY_USER', 'SSH_KEY_BLOB', 'STATIC_FILE_BASE')
     secrets = {name: os.environ[name] for name in names}
     if any(not secrets[name] for name in names):
         raise ValueError('A required SSH deployment secret is empty')
@@ -102,7 +103,7 @@ def deploy(dist):
         key.write_bytes(key_bytes(secrets['SSH_KEY_BLOB']))
         key.chmod(0o600)
         askpass = folder / 'askpass'
-        askpass.write_text('#!/usr/bin/env python3\nimport os, sys\nsys.stdout.write(os.environ["SSH_KEY_PASSPHRASE"] + "\\n")\n')
+        askpass.write_text('#!/usr/bin/env python3\nimport os, sys\nsys.stdout.write(os.environ.get("SSH_KEY_PASSPHRASE", "") + "\\n")\n')
         askpass.chmod(0o700)
         env = os.environ.copy()
         agent = subprocess.check_output(['ssh-agent', '-s'], text=True)

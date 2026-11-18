@@ -82,11 +82,22 @@ jobs:
           hostname: kodi-publish-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Ensure subnet routes and MagicDNS are enabled
         run: sudo tailscale set --accept-routes=true --accept-dns=true
+      # The SSH key publishing logs in with is kept in publish.sops.yaml,
+      # encrypted to this repository's own age key (the SOPS_AGE_KEY secret)
+      # and Parker's.
+      - name: Install SOPS
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/sops" https://github.com/getsops/sops/releases/download/v3.13.3/sops-v3.13.3.linux.amd64
+          echo "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b  $RUNNER_TEMP/sops" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/sops"
       - name: Publish over SSH
         env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
           SSH_KEY_HOST: ${{ secrets.SSH_KEY_HOST }}
           SSH_KEY_USER: ${{ secrets.SSH_KEY_USER }}
-          SSH_KEY_BLOB: ${{ secrets.SSH_KEY_BLOB }}
-          SSH_KEY_PASSPHRASE: ${{ secrets.SSH_KEY_PASSPHRASE }}
           STATIC_FILE_BASE: ${{ secrets.STATIC_FILE_BASE }}
-        run: python tools/deploy.py dist
+        run: |
+          SSH_KEY_BLOB="$("$RUNNER_TEMP/sops" decrypt --extract '["ssh_key"]' publish.sops.yaml)"
+          export SSH_KEY_BLOB
+          unset SOPS_AGE_KEY
+          python tools/deploy.py dist
