@@ -1,5 +1,14 @@
+# Repository configuration, managed by the Settings app
+# (https://github.com/repository-settings/app). The shared defaults come from
+# regulad/.github; this file sets only what is this repository's own.
+_extends: .github
+
 repository:
   name: kodi-plugins
-  description: Kodi add-on sources and repository publishing
+  description: >-
+    Kodi add-on sources and repository publishing
+  homepage: ""
+  private: false
+  # Topics: comma-and-space separated string, NOT a YAML list.
   topics: kodi, kodi-addons, kodi-repository, kodi-helix, jellyfin, apple-tv, appletv3, live-tv, python
   default_branch: master
