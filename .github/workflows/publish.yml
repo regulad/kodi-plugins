@@ -32,18 +32,18 @@ jobs:
     steps:
       # A pull request's run tests its own tools; every other run, master's.
       - name: Check out publishing tools
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'pull_request' && github.sha || 'master' }}
           persist-credentials: false
       - name: Check out Helix sources
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref == 'refs/heads/helix' && github.sha || 'helix' }}
           path: sources
           persist-credentials: false
       - name: Check out pinned repository generator (2.3.8)
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: chadparry/kodi-repository.chad.parry.org
           ref: 27c38eddda89e626d05b029edb29fbc83bb27201
