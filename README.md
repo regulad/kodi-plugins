@@ -4,7 +4,9 @@
 `helix` has an independent root commit and contains unpacked add-on sources,
 including Jellyfin Lite and `repository.regulad.helix`. Its small workflow calls
 the reusable pipeline here. Both a push to either branch and a manual dispatch
-publish Helix. No deployment secrets are supplied to pull-request workflows.
+publish Helix. A pull request to `master` runs the same pipeline up to the
+artifact, packaging and validating Helix without publishing it, and its run
+supplies no deployment secrets.
 
 ## Pipeline
 
@@ -15,7 +17,7 @@ The builder exports only tracked add-on directories, checks dependencies, makes
 stable ZIPs and MD5 sidecars, and creates an uncompressed catalog and download page.
 Python 2.7 syntax and the Helix branch's browsing/playback regression tests run
 in `python:2.7.18-slim`; runtime testing on the ATV is still necessary. The
-complete static tree is also saved as a GHA artifact.
+complete static tree is also saved as a GHA artifact, except on a pull request.
 
 The Tailscale action signs in with kodi-plugins' Tailscale federated identity:
 it exchanges the run's GitHub OIDC token, which the `id-token: write` permission

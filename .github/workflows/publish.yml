@@ -1,7 +1,14 @@
 name: Publish Kodi repository
 
+# A pull request to master runs the same packaging and validation against the
+# helix sources, and stops there: the steps from the artifact on, which publish
+# and need the Actions secrets (which Dependabot's runs can't read), run only on
+# a push, a manual run or a call from helix. Its job, `publish`, is one of
+# .github/settings.yml's required checks.
 on:
   push:
+    branches: [master]
+  pull_request:
     branches: [master]
   workflow_dispatch:
   workflow_call:
@@ -12,8 +19,10 @@ permissions:
   # accepts, so no long-lived Tailscale secret is stored.
   id-token: write
 
+# Pull requests get a group of their own, so that a pull request's run never
+# takes the place of a publish waiting in publish-helix.
 concurrency:
-  group: publish-helix
+  group: ${{ github.event_name == 'pull_request' && format('pull-request-{0}', github.ref) || 'publish-helix' }}
   cancel-in-progress: false
 
 jobs:
@@ -21,26 +30,27 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      # A pull request's run tests its own tools; every other run, master's.
       - name: Check out publishing tools
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: master
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'master' }}
           persist-credentials: false
       - name: Check out Helix sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.ref == 'refs/heads/helix' && github.sha || 'helix' }}
           path: sources
           persist-credentials: false
       - name: Check out pinned repository generator (2.3.8)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: chadparry/kodi-repository.chad.parry.org
           ref: 27c38eddda89e626d05b029edb29fbc83bb27201
           path: upstream
           persist-credentials: false
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
       - name: Install SSH and DNS utilities
@@ -67,30 +77,35 @@ jobs:
         run: |
           docker run --rm -v "$PWD/sources:/sources:ro" -w /sources \
             python:2.7.18-slim python -B -m unittest discover -s tests -v
-      - name: Save installable repository artifact
-        uses: actions/upload-artifact@v4
+      - if: github.event_name != 'pull_request'
+        name: Save installable repository artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: helix-repository-${{ github.run_id }}-${{ github.run_attempt }}
           path: dist/
           if-no-files-found: error
-      - name: Join Tailscale with subnet routes and MagicDNS
+      - if: github.event_name != 'pull_request'
+        name: Join Tailscale with subnet routes and MagicDNS
         uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
           audience: ${{ secrets.TS_AUDIENCE }}
           tags: tag:ci-kodi
           hostname: kodi-publish-${{ github.run_id }}-${{ github.run_attempt }}
-      - name: Ensure subnet routes and MagicDNS are enabled
+      - if: github.event_name != 'pull_request'
+        name: Ensure subnet routes and MagicDNS are enabled
         run: sudo tailscale set --accept-routes=true --accept-dns=true
       # The SSH key publishing logs in with is kept in publish.sops.yaml,
       # encrypted to this repository's own age key (the SOPS_AGE_KEY secret)
       # and Parker's.
-      - name: Install SOPS
+      - if: github.event_name != 'pull_request'
+        name: Install SOPS
         run: |
           curl -fsSLo "$RUNNER_TEMP/sops" https://github.com/getsops/sops/releases/download/v3.13.3/sops-v3.13.3.linux.amd64
           echo "e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b  $RUNNER_TEMP/sops" | sha256sum -c -
           chmod +x "$RUNNER_TEMP/sops"
-      - name: Publish over SSH
+      - if: github.event_name != 'pull_request'
+        name: Publish over SSH
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
           SSH_KEY_HOST: ${{ secrets.SSH_KEY_HOST }}
